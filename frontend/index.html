@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Dashboard de Sentimientos - Spa de Mascotas</title>
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chart.js para el dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <main class="layout">
+    <section class="hero card">
+      <div>
+        <span class="badge">Taller de Tecnico Superior</span>
+        <h1>Análisis de Sentimientos para Spa de Mascotas</h1>
+        <p>
+          Analiza comentarios en español, detecta polaridad, emoción aproximada,
+          confianza del modelo, palabras clave en español y datos acumulados tipo dashboard.
+        </p>
+      </div>
+    </section>
+
+    <section class="grid-main">
+      <section class="card analyzer">
+        <h2>Analizar comentario</h2>
+
+        <form id="sentimentForm">
+          <label for="comment">Comentario del cliente</label>
+          <textarea
+            id="comment"
+            placeholder="Ejemplo: El servicio fue excelente, dejaron a mi perrito limpio y feliz."
+            required
+          ></textarea>
+
+          <label class="check">
+            <input type="checkbox" id="translate" checked />
+            Traducir a inglés antes de analizar
+          </label>
+
+          <button type="submit" id="analyzeBtn">Analizar</button>
+        </form>
+
+        <div class="examples">
+          <button type="button" class="example-btn">El servicio fue excelente, dejaron a mi perrito hermoso.</button>
+          <button type="button" class="example-btn">Fue horrible, tardaron mucho y trataron mal a mi mascota.</button>
+          <button type="button" class="example-btn">El servicio estuvo normal, nada especial.</button>
+        </div>
+      </section>
+
+      <section class="card bulk-card">
+        <h2>Prueba masiva con CSV</h2>
+
+        <p class="muted">
+          Importa un CSV con comentarios. La página buscará columnas como
+          <strong>comentario</strong>, <strong>texto</strong>, <strong>text</strong> o <strong>comment</strong>.
+        </p>
+
+        <div class="csv-box">
+          <label for="csvFile">Archivo CSV</label>
+          <input type="file" id="csvFile" accept=".csv" />
+
+          <label for="csvColumn">Nombre de columna opcional</label>
+          <input
+            type="text"
+            id="csvColumn"
+            placeholder="Ejemplo: comentario"
+          />
+
+          <label for="csvLimit">Límite de comentarios</label>
+          <input
+            type="number"
+            id="csvLimit"
+            value="50"
+            min="1"
+            max="200"
+          />
+
+          <button type="button" id="bulkAnalyzeBtn">Analizar CSV</button>
+
+          <div class="progress-wrap hidden" id="progressWrap">
+            <div class="progress-meta">
+              <span id="progressText">Procesando...</span>
+              <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+          </div>
+
+          <p class="note">
+            Recomendación: para demo usa 20 a 50 comentarios. Si pones muchos, la traducción puede tardar.
+          </p>
+        </div>
+      </section>
+    </section>
+
+    <section id="result" class="card result hidden">
+      <div class="result-header">
+        <div>
+          <span class="small-label">Resultado principal</span>
+          <h2 id="sentimentLabel">-</h2>
+        </div>
+        <div class="confidence">
+          <span id="confidenceLabel">0%</span>
+          <small>confianza</small>
+        </div>
+      </div>
+
+      <div class="result-grid">
+        <div class="mini-card">
+          <span>Emoción dominante</span>
+          <strong id="emotionLabel">-</strong>
+        </div>
+
+        <div class="mini-card">
+          <span>Traducción usada por el modelo</span>
+          <p id="translatedText">-</p>
+        </div>
+      </div>
+
+      <div class="analysis-text">
+        <h3>Interpretación</h3>
+        <p id="interpretationText">-</p>
+
+        <h3>Recomendación</h3>
+        <p id="recommendationText">-</p>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <section class="card kpis">
+        <h2>Resumen del dashboard</h2>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <span>Total comentarios</span>
+            <strong id="kpiTotal">0</strong>
+          </div>
+          <div class="kpi">
+            <span>Positivos</span>
+            <strong id="kpiPositive">0%</strong>
+          </div>
+          <div class="kpi">
+            <span>Negativos</span>
+            <strong id="kpiNegative">0%</strong>
+          </div>
+          <div class="kpi">
+            <span>Confianza promedio</span>
+            <strong id="kpiConfidence">0%</strong>
+          </div>
+        </div>
+
+        <button type="button" class="secondary" id="clearDashboardBtn">
+          Limpiar dashboard
+        </button>
+      </section>
+
+      <section class="card chart-card">
+        <h2>Distribución de sentimientos</h2>
+        <canvas id="sentimentChart"></canvas>
+      </section>
+
+      <section class="card chart-card">
+        <h2>Emociones detectadas</h2>
+        <canvas id="emotionChart"></canvas>
+      </section>
+
+      <section class="card">
+        <h2>Probabilidades del último análisis</h2>
+        <div id="probabilityBars" class="bars"></div>
+      </section>
+
+      <section class="card">
+        <h2>Palabras clave del comentario</h2>
+        <p class="section-help">Extraídas del comentario original en español.</p>
+        <div id="keywordList" class="chips"></div>
+      </section>
+
+      <section class="card">
+        <h2>Palabras técnicas del modelo</h2>
+        <p class="section-help">Pueden salir en inglés porque el modelo fue entrenado con reseñas en inglés.</p>
+        <div id="modelKeywordList" class="chips"></div>
+      </section>
+    </section>
+
+    <section class="card history-card">
+      <div class="history-header">
+        <h2>Historial de análisis</h2>
+        <button type="button" class="secondary" id="exportBtn">Exportar CSV</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Comentario</th>
+              <th>Sentimiento</th>
+              <th>Emoción</th>
+              <th>Confianza</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
