@@ -1,6 +1,6 @@
 # Spa Sentimientos Dashboard V2
 
-Versión mejorada para análisis de sentimientos con dashboard.
+Versión mejorada para análisis de sentimientos con dashboard. Incluye corrección híbrida para frases ambiguas o falsos positivos del modelo.
 
 ## Cambios principales
 
@@ -9,6 +9,7 @@ Versión mejorada para análisis de sentimientos con dashboard.
 - Se agregó carga masiva de comentarios desde CSV.
 - El dashboard acumula resultados en el navegador.
 - Se puede exportar el historial a CSV.
+- Se agregó una capa híbrida de reglas para corregir baja confianza y frases como “esperaba algo mucho mejor”.
 
 ## Estructura esperada del CSV
 
@@ -58,6 +59,6 @@ http://127.0.0.1:5500
 
 ## Nota
 
-La predicción principal viene de tu modelo real: Positivo / Neutral / Negativo.
+La predicción principal usa tu modelo real y una capa de corrección: Positivo / Neutral / Negativo.
 
 Las emociones y palabras clave son una capa interpretativa adicional para enriquecer el dashboard.

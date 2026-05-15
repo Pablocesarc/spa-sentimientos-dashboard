@@ -1,6 +1,6 @@
 
-const API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict";
-const BATCH_API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict-batch";
+const API_URL = "http://127.0.0.1:8000/predict";
+const BATCH_API_URL = "http://127.0.0.1:8000/predict-batch";
 
 const form = document.getElementById("sentimentForm");
 const commentInput = document.getElementById("comment");
@@ -37,7 +37,8 @@ const historyTable = document.getElementById("historyTable");
 const clearDashboardBtn = document.getElementById("clearDashboardBtn");
 const exportBtn = document.getElementById("exportBtn");
 
-let history = JSON.parse(localStorage.getItem("spa_sentiment_history_v2")) || [];
+const HISTORY_STORAGE_KEY = "spa_sentiment_history_v3";
+let history = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)) || [];
 
 let sentimentChart = null;
 let emotionChart = null;
@@ -169,7 +170,7 @@ bulkAnalyzeBtn.addEventListener("click", async () => {
 
 clearDashboardBtn.addEventListener("click", () => {
   history = [];
-  localStorage.removeItem("spa_sentiment_history_v2");
+  localStorage.removeItem(HISTORY_STORAGE_KEY);
   renderDashboard();
 });
 
@@ -398,7 +399,7 @@ function addToHistory(data) {
   history.unshift(item);
   history = history.slice(0, 500);
 
-  localStorage.setItem("spa_sentiment_history_v2", JSON.stringify(history));
+  localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
 }
 
 function renderDashboard() {

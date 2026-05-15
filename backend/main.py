@@ -9,12 +9,12 @@ import numpy as np
 from collections import Counter
 
 
-MODEL_PATH = "modelo_sentimientos_pet_groomers.pkl"
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modelo_sentimientos_pet_groomers.pkl")
 
 app = FastAPI(
     title="API de Análisis de Sentimientos - Spa de Mascotas",
     description="Predice polaridad, emoción aproximada, keywords en español y datos para dashboard.",
-    version="2.1.0"
+    version="2.2.0"
 )
 
 app.add_middleware(
@@ -90,7 +90,9 @@ EMOTION_LEXICON_ES = {
     "Miedo": [
         "miedo", "preocupado", "preocupada", "riesgo", "peligro", "peligroso",
         "peligrosa", "asustado", "asustada", "nervioso", "nerviosa",
-        "inseguro", "insegura", "emergencia"
+        "inseguro", "insegura", "emergencia", "somnoliento", "somnolienta",
+        "adormecido", "adormecida", "decaído", "decaída", "irritado", "irritada",
+        "hinchado", "hinchada", "herido", "herida", "vomitó", "vomito"
     ],
     "Confianza": [
         "confianza", "confiable", "profesional", "profesionales", "seguro",
@@ -141,6 +143,230 @@ EMOTION_LEXICON_EN = {
     ]
 }
 
+
+
+NEUTRAL_PATTERNS_ES = [
+    r"\bnormal\b",
+    r"\bregular\b",
+    r"\baceptable\b",
+    r"\bpasable\b",
+    r"\bmas o menos\b",
+    r"\bm[aá]s o menos\b",
+    r"\bmeh\b",
+    r"\bok\b",
+    r"\bmejorable\b",
+    r"\bpuede mejorar\b",
+    r"\bpodria mejorar\b",
+    r"\bpodr[ií]a mejorar\b",
+    r"\bpodria ser mejor\b",
+    r"\bpodr[ií]a ser mejor\b",
+    r"\bno fue lo que esperaba\b",
+    r"\bno era lo que esperaba\b",
+    r"\bno es lo que esperaba\b",
+    r"\besperaba algo mejor\b",
+    r"\besperaba algo mucho mejor\b",
+    r"\besperaba mucho mejor\b",
+    r"\besperaba mas\b",
+    r"\besperaba m[aá]s\b",
+    r"\besperaba mejor\b",
+    r"\bpor\s+[a-z0-9\s]{0,20}\s+esperaba\b",
+]
+
+NEUTRAL_PATTERNS_EN = [
+    r"\bneutral\b",
+    r"\bnormal\b",
+    r"\bregular\b",
+    r"\baverage\b",
+    r"\bok\b",
+    r"\bmeh\b",
+    r"\bcould be better\b",
+    r"\bcan improve\b",
+    r"\bexpected better\b",
+    r"\bexpected something better\b",
+    r"\bexpected something much better\b",
+    r"\bnot what i expected\b",
+]
+
+STRONG_NEGATIVE_PATTERNS_ES = [
+    r"\bp[eé]simo\b", r"\bp[eé]sima\b", r"\bterrible\b", r"\bhorrible\b",
+    r"\bmaltrato\b", r"\bestafa\b", r"\bno recomiendo\b", r"\bnunca volver[ií]a\b",
+    r"\birresponsable\b", r"\babusivo\b", r"\babusiva\b", r"\bmalo\b", r"\bmala\b",
+    r"\bsomnoliento\b", r"\bsomnolienta\b", r"\badormecido\b", r"\badormecida\b",
+    r"\bdecaido\b", r"\bdecaida\b", r"\birritado\b", r"\birritada\b",
+    r"\bhinchado\b", r"\bhinchada\b", r"\bherido\b", r"\bherida\b",
+    r"\bvomito\b", r"\bvomito\b", r"\bdolor\b",
+]
+
+STRONG_NEGATIVE_PATTERNS_EN = [
+    r"\bawful\b", r"\bterrible\b", r"\bhorrible\b", r"\bworst\b", r"\bscam\b",
+    r"\babuse\b", r"\babusive\b", r"\bdo not recommend\b", r"\bnever again\b",
+    r"\bbad\b", r"\bpoor\b",
+]
+
+STRONG_POSITIVE_PATTERNS_ES = [
+    r"\bexcelente\b", r"\bperfecto\b", r"\bperfecta\b", r"\bgenial\b",
+    r"\bincre[ií]ble\b", r"\bmaravilloso\b", r"\bmaravillosa\b",
+    r"\bme encant[oó]\b", r"\brecomiendo\b", r"\bmuy bueno\b", r"\bmuy buena\b",
+]
+
+STRONG_POSITIVE_PATTERNS_EN = [
+    r"\bexcellent\b", r"\bperfect\b", r"\bgreat\b", r"\bamazing\b", r"\bwonderful\b",
+    r"\bawesome\b", r"\bfantastic\b", r"\blove\b", r"\brecommend\b", r"\bvery good\b",
+]
+
+NEGATIVE_PATTERNS_ES = [
+    r"\bmal\b", r"\bmalo\b", r"\bmala\b", r"\bcaro\b", r"\bcara\b", r"\btarde\b",
+    r"\bdemora\b", r"\bdemoraron\b", r"\bmolesto\b", r"\bmolesta\b",
+    r"\bdecepcionado\b", r"\bdecepcionada\b", r"\btriste\b", r"\bqueja\b",
+    r"\breclamo\b", r"\bsucio\b", r"\bsucia\b", r"\bimpuntual\b",
+]
+
+NEGATIVE_PATTERNS_EN = [
+    r"\bbad\b", r"\bpoor\b", r"\bexpensive\b", r"\blate\b", r"\bdelay\b", r"\bupset\b",
+    r"\bdisappointed\b", r"\bsad\b", r"\bcomplaint\b", r"\bdirty\b", r"\bunpunctual\b",
+]
+
+POSITIVE_PATTERNS_ES = [
+    r"\bbien\b", r"\bbueno\b", r"\bbuena\b", r"\bbonito\b", r"\bbonita\b",
+    r"\bamable\b", r"\blimpio\b", r"\blimpia\b", r"\bprofesional\b",
+    r"\bconfiable\b", r"\batento\b", r"\batenta\b", r"\bcalidad\b",
+]
+
+POSITIVE_PATTERNS_EN = [
+    r"\bgood\b", r"\bnice\b", r"\bfriendly\b", r"\bclean\b", r"\bprofessional\b",
+    r"\breliable\b", r"\battentive\b", r"\bquality\b",
+]
+
+
+def normalize_for_rules(text: str) -> str:
+    """Normalización más estable para reglas: minúsculas, sin tildes y espacios limpios."""
+    import unicodedata
+
+    text = str(text).lower()
+    text = unicodedata.normalize("NFD", text)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    text = re.sub(r"http\S+|www\S+", " ", text)
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def count_pattern_matches(patterns: list[str], text: str) -> int:
+    return sum(1 for pattern in patterns if re.search(pattern, text))
+
+
+def recalibrate_probabilities(probabilities: dict, corrected_sentiment: str, min_confidence: float = 0.55):
+    """
+    Ajusta la distribución cuando una regla corrige la predicción.
+    No finge 99%; solo hace que la clase corregida sea la más probable y mantiene incertidumbre.
+    """
+    labels = ["Negativo", "Neutral", "Positivo"]
+    probs = {label: float(probabilities.get(label, 0.0)) for label in labels}
+
+    if corrected_sentiment not in probs:
+        return probabilities, round(max(probs.values()) if probs else 0.0, 4)
+
+    current_winner = max(probs, key=probs.get)
+    if current_winner == corrected_sentiment and probs[corrected_sentiment] >= min_confidence:
+        return {k: round(v, 4) for k, v in probs.items()}, round(probs[corrected_sentiment], 4)
+
+    target = max(float(min_confidence), probs[corrected_sentiment], max(probs.values()) + 0.03)
+    target = min(target, 0.85)
+
+    other_labels = [label for label in labels if label != corrected_sentiment]
+    old_other_total = sum(probs[label] for label in other_labels)
+    remaining = max(0.0, 1.0 - target)
+
+    new_probs = {corrected_sentiment: target}
+
+    if old_other_total <= 0:
+        share = remaining / len(other_labels)
+        for label in other_labels:
+            new_probs[label] = share
+    else:
+        for label in other_labels:
+            new_probs[label] = remaining * (probs[label] / old_other_total)
+
+    # Corrige posibles diferencias por redondeo.
+    total = sum(new_probs.values())
+    if total > 0:
+        new_probs = {label: value / total for label, value in new_probs.items()}
+
+    return {label: round(float(new_probs[label]), 4) for label in labels}, round(float(new_probs[corrected_sentiment]), 4)
+
+
+def apply_sentiment_corrections(original_text: str, text_for_model: str, prediction: str, probabilities: dict):
+    """
+    Capa híbrida encima del modelo.
+    El modelo base viene de reseñas en inglés; por eso frases como
+    'esperaba algo mucho mejor' pueden verse falsamente positivas por la palabra 'better'.
+    Esta capa corrige casos de baja confianza y frases neutrales/ambiguas en español.
+    """
+    clean_es = normalize_for_rules(original_text)
+    clean_en = normalize_for_rules(text_for_model)
+
+    neutral_hits = count_pattern_matches(NEUTRAL_PATTERNS_ES, clean_es) + count_pattern_matches(NEUTRAL_PATTERNS_EN, clean_en)
+    strong_neg_hits = count_pattern_matches(STRONG_NEGATIVE_PATTERNS_ES, clean_es) + count_pattern_matches(STRONG_NEGATIVE_PATTERNS_EN, clean_en)
+    strong_pos_hits = count_pattern_matches(STRONG_POSITIVE_PATTERNS_ES, clean_es) + count_pattern_matches(STRONG_POSITIVE_PATTERNS_EN, clean_en)
+    neg_hits = strong_neg_hits + count_pattern_matches(NEGATIVE_PATTERNS_ES, clean_es) + count_pattern_matches(NEGATIVE_PATTERNS_EN, clean_en)
+    pos_hits = strong_pos_hits + count_pattern_matches(POSITIVE_PATTERNS_ES, clean_es) + count_pattern_matches(POSITIVE_PATTERNS_EN, clean_en)
+
+    corrected = str(prediction)
+    reason = "modelo_base"
+    original_confidence = max(float(v) for v in probabilities.values()) if probabilities else 0.0
+    min_confidence = original_confidence
+
+    # 1) Palabras fuertemente negativas/positivas ganan sobre el modelo.
+    # 2) Frases tipo "esperaba algo mucho mejor" son reclamos leves/ambiguos: Neutral.
+    # 3) Si el modelo no llega a 55%, se muestra Neutral salvo que exista evidencia fuerte.
+    if strong_neg_hits > 0 and strong_neg_hits >= strong_pos_hits:
+        corrected = "Negativo"
+        reason = "regla_negativa_fuerte"
+        min_confidence = 0.70
+    elif strong_pos_hits > 0 and strong_pos_hits > strong_neg_hits:
+        corrected = "Positivo"
+        reason = "regla_positiva_fuerte"
+        min_confidence = 0.70
+    elif neutral_hits > 0 and strong_neg_hits == 0 and strong_pos_hits == 0:
+        corrected = "Neutral"
+        reason = "regla_neutral_contextual"
+        min_confidence = 0.55
+    elif neg_hits >= pos_hits + 2:
+        corrected = "Negativo"
+        reason = "regla_lexico_negativo"
+        min_confidence = 0.62
+    elif pos_hits >= neg_hits + 2:
+        corrected = "Positivo"
+        reason = "regla_lexico_positivo"
+        min_confidence = 0.62
+    elif original_confidence < 0.55:
+        corrected = "Neutral"
+        reason = "baja_confianza_modelo"
+        min_confidence = 0.55
+    elif corrected == "Positivo" and neg_hits > pos_hits and probabilities.get("Positivo", 0) - probabilities.get("Negativo", 0) < 0.20:
+        corrected = "Neutral"
+        reason = "positivo_debil_con_senales_negativas"
+        min_confidence = 0.55
+    elif corrected == "Negativo" and pos_hits > neg_hits and probabilities.get("Negativo", 0) - probabilities.get("Positivo", 0) < 0.20:
+        corrected = "Neutral"
+        reason = "negativo_debil_con_senales_positivas"
+        min_confidence = 0.55
+
+    calibrated_probabilities, confidence = recalibrate_probabilities(probabilities, corrected, min_confidence)
+
+    return {
+        "sentiment": corrected,
+        "confidence": confidence,
+        "probabilities": calibrated_probabilities,
+        "correction_reason": reason,
+        "signals": {
+            "neutral_hits": neutral_hits,
+            "negative_hits": neg_hits,
+            "positive_hits": pos_hits,
+            "original_prediction": str(prediction),
+            "original_confidence": round(original_confidence, 4)
+        }
+    }
 
 def normalize_text(text: str) -> str:
     text = str(text).lower()
@@ -371,15 +597,34 @@ def analyze_text(original_text: str, translate_to_english: bool = True):
     probabilities = modelo.predict_proba([text_for_model])[0]
     classes = modelo.classes_
 
-    probabilities_dict = {
+    raw_probabilities_dict = {
         str(label): round(float(prob), 4)
         for label, prob in zip(classes, probabilities)
     }
 
-    confidence = round(float(max(probabilities)), 4)
+    correction = apply_sentiment_corrections(
+        original_text,
+        text_for_model,
+        str(prediction),
+        raw_probabilities_dict
+    )
+
+    final_sentiment = correction["sentiment"]
+    probabilities_dict = correction["probabilities"]
+    confidence = correction["confidence"]
 
     emotion_scores, emotion_words = score_emotions(original_text, text_for_model)
-    emotion = choose_emotion(emotion_scores, str(prediction))
+
+    if final_sentiment == "Neutral":
+        emotion = "Neutral"
+    else:
+        emotion = choose_emotion(emotion_scores, final_sentiment)
+
+        # Evita contradicciones visuales tipo: sentimiento negativo con emoción Alegría.
+        if final_sentiment == "Negativo" and emotion == "Alegría":
+            emotion = "Enojo" if emotion_scores.get("Enojo", 0) >= emotion_scores.get("Tristeza", 0) else "Tristeza"
+        elif final_sentiment == "Positivo" and emotion in {"Enojo", "Tristeza", "Asco", "Miedo"}:
+            emotion = "Alegría"
 
     total_emotion_score = sum(emotion_scores.values())
     if total_emotion_score > 0:
@@ -394,19 +639,23 @@ def analyze_text(original_text: str, translate_to_english: bool = True):
 
     keywords_es = extract_spanish_keywords(original_text, top_n=10)
     model_keywords_en = get_keywords_from_model(text_for_model, top_n=8)
-    top_words_for_prediction = TOP_WORDS_BY_SENTIMENT.get(str(prediction), [])
+    top_words_for_prediction = TOP_WORDS_BY_SENTIMENT.get(final_sentiment, [])
 
-    interpretation = build_interpretation(str(prediction), emotion, confidence)
-    recommendation = build_recommendation(str(prediction), emotion)
+    interpretation = build_interpretation(final_sentiment, emotion, confidence)
+    recommendation = build_recommendation(final_sentiment, emotion)
 
     return {
         "original_text": original_text,
         "text_used_by_model": text_for_model,
         "was_translated": was_translated,
 
-        "sentiment": str(prediction),
+        "sentiment": final_sentiment,
         "confidence": confidence,
         "probabilities": probabilities_dict,
+        "raw_model_sentiment": str(prediction),
+        "raw_model_confidence": correction["signals"]["original_confidence"],
+        "correction_reason": correction["correction_reason"],
+        "correction_signals": correction["signals"],
 
         "dominant_emotion": emotion,
         "emotion_scores": emotion_scores,
@@ -430,7 +679,7 @@ def analyze_text(original_text: str, translate_to_english: bool = True):
 def home():
     return {
         "message": "API funcionando correctamente",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "endpoints": ["/predict", "/predict-batch", "/model-info"]
     }
 
@@ -440,7 +689,7 @@ def model_info():
     return {
         "classes": list(map(str, modelo.classes_)),
         "top_words_by_sentiment_en": TOP_WORDS_BY_SENTIMENT,
-        "note": "Las keywords visibles se extraen del comentario original en español. Las palabras técnicas del modelo pueden estar en inglés porque el modelo fue entrenado con reseñas en inglés."
+        "note": "Las keywords visibles se extraen del comentario original en español. La predicción usa el modelo base y una capa híbrida de reglas para baja confianza, frases neutrales y falsos positivos por traducción."
     }
 
 
