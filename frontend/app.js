@@ -1,6 +1,6 @@
 
-const API_URL = "http://127.0.0.1:8000/predict";
-const BATCH_API_URL = "http://127.0.0.1:8000/predict-batch";
+const API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict";
+const BATCH_API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict-batch";
 
 const form = document.getElementById("sentimentForm");
 const commentInput = document.getElementById("comment");
