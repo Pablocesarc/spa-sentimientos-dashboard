@@ -138,6 +138,7 @@ label {
 textarea,
 input[type="text"],
 input[type="number"],
+input[type="date"],
 input[type="file"] {
   width: 100%;
   border: 2px solid var(--borde);
@@ -350,6 +351,14 @@ button:disabled {
   max-height: 310px;
 }
 
+.wide-chart {
+  grid-column: span 2;
+}
+
+.wide-chart canvas {
+  max-height: 360px;
+}
+
 .bars {
   display: flex;
   flex-direction: column;
@@ -483,7 +492,8 @@ td:first-child {
     grid-template-columns: 1fr;
   }
 
-  .kpis {
+  .kpis,
+  .wide-chart {
     grid-column: span 1;
   }
 

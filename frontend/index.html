@@ -37,6 +37,9 @@
             required
           ></textarea>
 
+          <label for="manualDate">Fecha del comentario</label>
+          <input type="date" id="manualDate" />
+
           <label class="check">
             <input type="checkbox" id="translate" checked />
             Traducir a inglés antes de analizar
@@ -56,19 +59,27 @@
         <h2>Prueba masiva con CSV</h2>
 
         <p class="muted">
-          Importa un CSV con comentarios. La página buscará columnas como
+          Importa un CSV con comentarios y fechas. La página buscará columnas como
           <strong>comentario</strong>, <strong>texto</strong>, <strong>text</strong> o <strong>comment</strong>.
+          Para las fechas buscará columnas como <strong>fecha</strong>, <strong>date</strong> o <strong>día</strong>.
         </p>
 
         <div class="csv-box">
           <label for="csvFile">Archivo CSV</label>
           <input type="file" id="csvFile" accept=".csv" />
 
-          <label for="csvColumn">Nombre de columna opcional</label>
+          <label for="csvColumn">Nombre de columna de comentarios opcional</label>
           <input
             type="text"
             id="csvColumn"
             placeholder="Ejemplo: comentario"
+          />
+
+          <label for="csvDateColumn">Nombre de columna de fechas opcional</label>
+          <input
+            type="text"
+            id="csvDateColumn"
+            placeholder="Ejemplo: fecha"
           />
 
           <label for="csvLimit">Límite de comentarios</label>
@@ -170,6 +181,12 @@
         <canvas id="emotionChart"></canvas>
       </section>
 
+      <section class="card chart-card wide-chart">
+        <h2>Estado de ánimo por fecha</h2>
+        <p class="section-help">Muestra en qué días predominaron comentarios positivos, neutrales o negativos.</p>
+        <canvas id="dailyMoodChart"></canvas>
+      </section>
+
       <section class="card">
         <h2>Probabilidades del último análisis</h2>
         <div id="probabilityBars" class="bars"></div>
@@ -198,6 +215,7 @@
         <table>
           <thead>
             <tr>
+              <th>Fecha</th>
               <th>Comentario</th>
               <th>Sentimiento</th>
               <th>Emoción</th>

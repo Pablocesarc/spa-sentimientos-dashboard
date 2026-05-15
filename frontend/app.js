@@ -1,14 +1,21 @@
 
-const API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict";
-const BATCH_API_URL = "https://spa-sentimientos-dashboard.onrender.com/predict-batch";
+const API_BASE_URL =
+  window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"
+    ? "http://127.0.0.1:8000"
+    : "https://spa-sentimientos-dashboard.onrender.com";
+
+const API_URL = `${API_BASE_URL}/predict`;
+const BATCH_API_URL = `${API_BASE_URL}/predict-batch`;
 
 const form = document.getElementById("sentimentForm");
 const commentInput = document.getElementById("comment");
 const translateInput = document.getElementById("translate");
+const manualDateInput = document.getElementById("manualDate");
 const analyzeBtn = document.getElementById("analyzeBtn");
 
 const csvFileInput = document.getElementById("csvFile");
 const csvColumnInput = document.getElementById("csvColumn");
+const csvDateColumnInput = document.getElementById("csvDateColumn");
 const csvLimitInput = document.getElementById("csvLimit");
 const bulkAnalyzeBtn = document.getElementById("bulkAnalyzeBtn");
 const progressWrap = document.getElementById("progressWrap");
@@ -37,11 +44,16 @@ const historyTable = document.getElementById("historyTable");
 const clearDashboardBtn = document.getElementById("clearDashboardBtn");
 const exportBtn = document.getElementById("exportBtn");
 
-const HISTORY_STORAGE_KEY = "spa_sentiment_history_v3";
+const HISTORY_STORAGE_KEY = "spa_sentiment_history_v4";
 let history = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)) || [];
 
 let sentimentChart = null;
 let emotionChart = null;
+let dailyMoodChart = null;
+
+if (manualDateInput) {
+  manualDateInput.value = getTodayDate();
+}
 
 document.querySelectorAll(".example-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -81,6 +93,8 @@ form.addEventListener("submit", async (event) => {
       alert(data.error);
       return;
     }
+
+    data.analysis_date = manualDateInput?.value || getTodayDate();
 
     renderResult(data);
     addToHistory(data);
@@ -127,26 +141,31 @@ bulkAnalyzeBtn.addEventListener("click", async () => {
     const dataRows = rows.slice(1);
 
     const selectedColumn = csvColumnInput.value.trim();
+    const selectedDateColumn = csvDateColumnInput.value.trim();
     const columnIndex = findCommentColumnIndex(headers, selectedColumn);
+    const dateColumnIndex = findDateColumnIndex(headers, selectedDateColumn);
 
     if (columnIndex === -1) {
       alert("No se encontró la columna indicada. Revisa el nombre de la columna.");
       return;
     }
 
-    const comments = dataRows
-      .map((row) => (row[columnIndex] || "").trim())
-      .filter((text) => text.length > 0)
+    const records = dataRows
+      .map((row) => ({
+        text: (row[columnIndex] || "").trim(),
+        date: normalizeDateValue(dateColumnIndex !== -1 ? row[dateColumnIndex] : "") || getTodayDate()
+      }))
+      .filter((item) => item.text.length > 0)
       .slice(0, limit);
 
-    if (comments.length === 0) {
+    if (records.length === 0) {
       alert("No se encontraron comentarios válidos en el CSV.");
       return;
     }
 
-    setProgress(10, `Enviando ${comments.length} comentarios...`);
+    setProgress(10, `Enviando ${records.length} comentarios...`);
 
-    const results = await analyzeInChunks(comments, 25);
+    const results = await analyzeInChunks(records, 25);
 
     if (results.length === 0) {
       alert("No se pudo analizar ningún comentario.");
@@ -178,12 +197,13 @@ exportBtn.addEventListener("click", () => {
   exportHistoryCSV();
 });
 
-async function analyzeInChunks(comments, chunkSize) {
+async function analyzeInChunks(records, chunkSize) {
   const allResults = [];
-  const total = comments.length;
+  const total = records.length;
 
-  for (let i = 0; i < comments.length; i += chunkSize) {
-    const chunk = comments.slice(i, i + chunkSize);
+  for (let i = 0; i < records.length; i += chunkSize) {
+    const chunk = records.slice(i, i + chunkSize);
+    const texts = chunk.map((item) => item.text);
 
     setProgress(
       Math.round((i / total) * 90) + 10,
@@ -196,7 +216,7 @@ async function analyzeInChunks(comments, chunkSize) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        texts: chunk,
+        texts,
         translate_to_english: translateInput.checked
       })
     });
@@ -207,7 +227,12 @@ async function analyzeInChunks(comments, chunkSize) {
       throw new Error(data.error);
     }
 
-    allResults.push(...data.results);
+    data.results.forEach((result, index) => {
+      allResults.push({
+        ...result,
+        analysis_date: chunk[index]?.date || getTodayDate()
+      });
+    });
   }
 
   return allResults;
@@ -311,6 +336,91 @@ function findCommentColumnIndex(headers, selectedColumn) {
   return 0;
 }
 
+function findDateColumnIndex(headers, selectedColumn) {
+  if (selectedColumn) {
+    const normalizedSelected = normalizeHeader(selectedColumn);
+    return headers.findIndex((h) => h === normalizedSelected);
+  }
+
+  const candidates = [
+    "fecha",
+    "date",
+    "dia",
+    "día",
+    "fecha_comentario",
+    "fecha comentario",
+    "created_at",
+    "created",
+    "timestamp"
+  ].map(normalizeHeader);
+
+  for (const candidate of candidates) {
+    const idx = headers.findIndex((h) => h === candidate);
+    if (idx !== -1) return idx;
+  }
+
+  return -1;
+}
+
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeDateValue(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) return "";
+
+  const isoMatch = raw.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return buildISODate(isoMatch[1], isoMatch[2], isoMatch[3]);
+  }
+
+  const dayFirstMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dayFirstMatch) {
+    return buildISODate(dayFirstMatch[3], dayFirstMatch[2], dayFirstMatch[1]);
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  return "";
+}
+
+function buildISODate(year, month, day) {
+  const yyyy = String(year).padStart(4, "0");
+  const mm = String(month).padStart(2, "0");
+  const dd = String(day).padStart(2, "0");
+  const date = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDisplayDate(dateValue) {
+  const normalized = normalizeDateValue(dateValue) || getTodayDate();
+  const date = new Date(`${normalized}T00:00:00`);
+
+  return date.toLocaleDateString("es-BO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+function formatShortDate(dateValue) {
+  const normalized = normalizeDateValue(dateValue) || getTodayDate();
+  const date = new Date(`${normalized}T00:00:00`);
+
+  return date.toLocaleDateString("es-BO", {
+    day: "2-digit",
+    month: "short"
+  });
+}
+
 function renderResult(data) {
   resultBox.classList.remove("hidden");
 
@@ -393,6 +503,7 @@ function addToHistory(data) {
     probabilities: data.probabilities,
     emotion_scores: data.emotion_scores,
     keywords_from_comment_es: data.keywords_from_comment_es || [],
+    analysis_date: normalizeDateValue(data.analysis_date) || getTodayDate(),
     created_at: new Date().toISOString()
   };
 
@@ -407,6 +518,7 @@ function renderDashboard() {
   renderHistoryTable();
   renderSentimentChart();
   renderEmotionChart();
+  renderDailyMoodChart();
 }
 
 function renderKPIs() {
@@ -436,7 +548,7 @@ function renderHistoryTable() {
   if (history.length === 0) {
     historyTable.innerHTML = `
       <tr>
-        <td colspan="4">Todavía no hay análisis realizados.</td>
+        <td colspan="5">Todavía no hay análisis realizados.</td>
       </tr>
     `;
     return;
@@ -446,6 +558,7 @@ function renderHistoryTable() {
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
+      <td>${formatDisplayDate(item.analysis_date || item.created_at)}</td>
       <td>${escapeHtml(item.original_text)}</td>
       <td class="${getSentimentClass(item.sentiment)}">${getSentimentEmoji(item.sentiment)} ${item.sentiment}</td>
       <td>${getEmotionEmoji(item.dominant_emotion)} ${item.dominant_emotion}</td>
@@ -532,6 +645,75 @@ function renderEmotionChart() {
   });
 }
 
+function renderDailyMoodChart() {
+  const ctx = document.getElementById("dailyMoodChart");
+  if (!ctx) return;
+
+  const sentimentLabels = ["Positivo", "Neutral", "Negativo"];
+  const grouped = {};
+
+  history.forEach((item) => {
+    const date = normalizeDateValue(item.analysis_date || item.created_at) || getTodayDate();
+
+    if (!grouped[date]) {
+      grouped[date] = {
+        Positivo: 0,
+        Neutral: 0,
+        Negativo: 0
+      };
+    }
+
+    if (grouped[date][item.sentiment] !== undefined) {
+      grouped[date][item.sentiment]++;
+    }
+  });
+
+  const dates = Object.keys(grouped).sort();
+  const labels = dates.map(formatShortDate);
+
+  const datasets = sentimentLabels.map((sentiment) => ({
+    label: `${getSentimentEmoji(sentiment)} ${sentiment}`,
+    data: dates.map((date) => grouped[date][sentiment] || 0)
+  }));
+
+  if (dailyMoodChart) {
+    dailyMoodChart.destroy();
+  }
+
+  dailyMoodChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const index = items[0]?.dataIndex ?? 0;
+              return formatDisplayDate(dates[index]);
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true
+        },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+}
+
 function exportHistoryCSV() {
   if (history.length === 0) {
     alert("No hay datos para exportar.");
@@ -539,13 +721,14 @@ function exportHistoryCSV() {
   }
 
   const rows = [
-    ["comentario", "sentimiento", "emocion", "confianza", "palabras_clave_es", "fecha"]
+    ["fecha", "comentario", "sentimiento", "emocion", "confianza", "palabras_clave_es", "fecha_registro"]
   ];
 
   history.forEach((item) => {
     const keywords = (item.keywords_from_comment_es || []).map((k) => k.word).join(" | ");
 
     rows.push([
+      normalizeDateValue(item.analysis_date || item.created_at) || getTodayDate(),
       item.original_text,
       item.sentiment,
       item.dominant_emotion,
