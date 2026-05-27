@@ -6,6 +6,8 @@ import joblib
 import os
 import re
 import numpy as np
+
+from agent_routes import router as agent_router
 from collections import Counter
 
 from database import Base, engine
@@ -18,6 +20,9 @@ app = FastAPI(
     description="Predice polaridad, emoción aproximada, keywords en español y datos para dashboard.",
     version="2.2.0"
 )
+
+Base.metadata.create_all(bind=engine)
+app.include_router(agent_router)
 
 app.add_middleware(
     CORSMiddleware,
