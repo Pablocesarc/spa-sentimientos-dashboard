@@ -1,17 +1,23 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from deep_translator import GoogleTranslator
+from sqlalchemy.orm import Session
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import joblib
 import os
 import re
 import numpy as np
-
-from agent_routes import router as agent_router
 from collections import Counter
 
-from database import Base, engine
+from database import Base, engine, get_db
 import models
+from models import Comentario
+from agent_routes import router as agent_router
+
+
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modelo_sentimientos_pet_groomers.pkl")
 
@@ -681,6 +687,27 @@ def analyze_text(original_text: str, translate_to_english: bool = True):
         "recommendation": recommendation
     }
 
+def obtener_fecha_bolivia():
+    return datetime.now(ZoneInfo("America/La_Paz")).date()
+
+
+def guardar_comentario_en_bd(resultado: dict, db: Session):
+    if "error" in resultado:
+        return None
+
+    nuevo_comentario = Comentario(
+        texto=resultado.get("original_text"),
+        fecha=obtener_fecha_bolivia(),
+        sentimiento=resultado.get("sentiment"),
+        emocion=resultado.get("dominant_emotion"),
+        confianza=resultado.get("confidence")
+    )
+
+    db.add(nuevo_comentario)
+    db.commit()
+    db.refresh(nuevo_comentario)
+
+    return nuevo_comentario.id
 
 @app.get("/")
 def home():
@@ -701,12 +728,22 @@ def model_info():
 
 
 @app.post("/predict")
-def predict_sentiment(request: SentimentRequest):
-    return analyze_text(request.text, request.translate_to_english)
+def predict_sentiment(request: SentimentRequest, db: Session = Depends(get_db)):
+    resultado = analyze_text(request.text, request.translate_to_english)
+
+    comentario_id = guardar_comentario_en_bd(resultado, db)
+
+    if comentario_id:
+        resultado["comentario_id"] = comentario_id
+        resultado["guardado_en_bd"] = True
+    else:
+        resultado["guardado_en_bd"] = False
+
+    return resultado
 
 
 @app.post("/predict-batch")
-def predict_batch(request: BatchSentimentRequest):
+def predict_batch(request: BatchSentimentRequest, db: Session = Depends(get_db)):
     texts = [str(t).strip() for t in request.texts if str(t).strip()]
 
     if len(texts) == 0:
@@ -717,12 +754,23 @@ def predict_batch(request: BatchSentimentRequest):
             "error": "Máximo 200 comentarios por lote. Divide el CSV en lotes más pequeños."
         }
 
-    results = [
-        analyze_text(text, request.translate_to_english)
-        for text in texts
-    ]
+    results = []
+
+    for text in texts:
+        resultado = analyze_text(text, request.translate_to_english)
+
+        comentario_id = guardar_comentario_en_bd(resultado, db)
+
+        if comentario_id:
+            resultado["comentario_id"] = comentario_id
+            resultado["guardado_en_bd"] = True
+        else:
+            resultado["guardado_en_bd"] = False
+
+        results.append(resultado)
 
     return {
         "total": len(results),
+        "guardados_en_bd": sum(1 for r in results if r.get("guardado_en_bd")),
         "results": results
     }
