@@ -8,6 +8,8 @@ import re
 import numpy as np
 from collections import Counter
 
+from database import Base, engine
+import models
 
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modelo_sentimientos_pet_groomers.pkl")
 
