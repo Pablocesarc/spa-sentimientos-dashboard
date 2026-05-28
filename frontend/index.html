@@ -204,7 +204,82 @@
         <div id="modelKeywordList" class="chips"></div>
       </section>
     </section>
+<section class="card agent-card">
+  <div class="agent-header">
+    <div>
+      <span class="small-label">Agente inteligente de calidad</span>
+      <h2>Resumen diario automático</h2>
+      <p class="section-help">
+        Resúmenes generados por el agente con base en los comentarios analizados y guardados en PostgreSQL.
+      </p>
+    </div>
 
+    <button type="button" class="secondary" id="reloadAgentBtn">
+      Actualizar agente
+    </button>
+  </div>
+
+  <div id="agentStatus" class="agent-status">
+    Cargando información del agente...
+  </div>
+
+  <div id="agentContent" class="hidden">
+    <div class="kpi-grid agent-kpis">
+      <div class="kpi">
+        <span>Fecha</span>
+        <strong id="agentDate">-</strong>
+      </div>
+      <div class="kpi">
+        <span>Total comentarios</span>
+        <strong id="agentTotal">0</strong>
+      </div>
+      <div class="kpi">
+        <span>Satisfacción</span>
+        <strong id="agentSatisfaction">0%</strong>
+      </div>
+      <div class="kpi">
+        <span>Tema principal</span>
+        <strong id="agentMainTopic">-</strong>
+      </div>
+    </div>
+
+    <div class="agent-summary">
+      <h3>Resumen del día</h3>
+      <p id="agentSummaryText">-</p>
+    </div>
+
+    <div class="agent-grid">
+      <div class="mini-card">
+        <h3>Sentimientos</h3>
+        <ul class="agent-list">
+          <li>Positivos: <strong id="agentPositive">0</strong></li>
+          <li>Neutrales: <strong id="agentNeutral">0</strong></li>
+          <li>Negativos: <strong id="agentNegative">0</strong></li>
+        </ul>
+      </div>
+
+      <div class="mini-card">
+        <h3>Temas frecuentes</h3>
+        <div id ="agentTopics" class="chips"></div>
+      </div>
+
+      <div class="mini-card">
+        <h3>Recomendaciones</h3>
+        <ul id="agentRecommendations" class="agent-list"></ul>
+      </div>
+
+      <div class="mini-card">
+        <h3>Alertas</h3>
+        <ul id="agentAlerts" class="agent-list"></ul>
+      </div>
+    </div>
+
+    <div class="agent-history">
+      <h3>Historial de resúmenes</h3>
+      <div id="agentHistoryList" class="agent-history-list"></div>
+    </div>
+  </div>
+</section>
     <section class="card history-card">
       <div class="history-header">
         <h2>Historial de análisis</h2>

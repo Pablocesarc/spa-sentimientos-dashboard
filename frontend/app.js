@@ -3,7 +3,7 @@ const API_BASE_URL =
   window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost"
     ? "http://127.0.0.1:8000"
     : "https://spa-sentimientos-dashboard.onrender.com";
-
+const AGENT_SUMMARIES_URL = `${API_BASE_URL}/api/agente/resumenes`;
 const API_URL = `${API_BASE_URL}/predict`;
 const BATCH_API_URL = `${API_BASE_URL}/predict-batch`;
 
@@ -43,6 +43,24 @@ const kpiConfidence = document.getElementById("kpiConfidence");
 const historyTable = document.getElementById("historyTable");
 const clearDashboardBtn = document.getElementById("clearDashboardBtn");
 const exportBtn = document.getElementById("exportBtn");
+const reloadAgentBtn = document.getElementById("reloadAgentBtn");
+const agentStatus = document.getElementById("agentStatus");
+const agentContent = document.getElementById("agentContent");
+
+const agentDate = document.getElementById("agentDate");
+const agentTotal = document.getElementById("agentTotal");
+const agentSatisfaction = document.getElementById("agentSatisfaction");
+const agentMainTopic = document.getElementById("agentMainTopic");
+const agentSummaryText = document.getElementById("agentSummaryText");
+
+const agentPositive = document.getElementById("agentPositive");
+const agentNeutral = document.getElementById("agentNeutral");
+const agentNegative = document.getElementById("agentNegative");
+
+const agentTopics = document.getElementById("agentTopics");
+const agentRecommendations = document.getElementById("agentRecommendations");
+const agentAlerts = document.getElementById("agentAlerts");
+const agentHistoryList = document.getElementById("agentHistoryList");
 
 const HISTORY_STORAGE_KEY = "spa_sentiment_history_v4";
 let history = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)) || [];
@@ -196,6 +214,11 @@ clearDashboardBtn.addEventListener("click", () => {
 exportBtn.addEventListener("click", () => {
   exportHistoryCSV();
 });
+if (reloadAgentBtn) {
+  reloadAgentBtn.addEventListener("click", () => {
+    loadAgentSummaries();
+  });
+}
 
 async function analyzeInChunks(records, chunkSize) {
   const allResults = [];
@@ -789,5 +812,145 @@ function escapeHtml(text) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+async function loadAgentSummaries() {
+  if (!agentStatus || !agentContent) return;
 
+  agentStatus.textContent = "Cargando resúmenes del agente...";
+  agentStatus.classList.remove("hidden");
+  agentContent.classList.add("hidden");
+
+  try {
+    const response = await fetch(AGENT_SUMMARIES_URL);
+
+    if (!response.ok) {
+      throw new Error("No se pudo obtener la información del agente.");
+    }
+
+    const summaries = await response.json();
+
+    if (!Array.isArray(summaries) || summaries.length === 0) {
+      agentStatus.textContent = "Todavía no hay resúmenes generados por el agente.";
+      return;
+    }
+
+    renderAgentSummary(summaries[0]);
+    renderAgentHistory(summaries);
+
+    agentStatus.classList.add("hidden");
+    agentContent.classList.remove("hidden");
+
+  } catch (error) {
+    console.error(error);
+    agentStatus.textContent = "No se pudo cargar el agente. Verifica que el backend esté activo en Render.";
+  }
+}
+
+async function renderAgentSummary(summary) {
+  agentDate.textContent = formatDisplayDate(summary.fecha);
+  agentTotal.textContent = summary.total_comentarios ?? 0;
+  agentSatisfaction.textContent = `${Math.round(Number(summary.nivel_satisfaccion || 0))}%`;
+  agentMainTopic.textContent = summary.tema_principal || "-";
+
+  agentSummaryText.textContent = summary.resumen || "Resumen no disponible.";
+
+  agentPositive.textContent = summary.positivos ?? 0;
+  agentNeutral.textContent = summary.neutrales ?? 0;
+  agentNegative.textContent = summary.negativos ?? 0;
+
+  agentTopics.innerHTML = `<span class="chip">Cargando temas...</span>`;
+  agentRecommendations.innerHTML = `<li>Cargando recomendaciones...</li>`;
+  agentAlerts.innerHTML = `<li>Cargando alertas...</li>`;
+
+  try {
+    const response = await fetch(`${AGENT_SUMMARIES_URL}/${summary.id}`);
+
+    if (!response.ok) {
+      throw new Error("No se pudo obtener el detalle del resumen.");
+    }
+
+    const detail = await response.json();
+
+    renderAgentTopics(detail.temas_frecuentes || []);
+    renderAgentRecommendations(detail.recomendaciones || []);
+    renderAgentAlerts(detail.alertas || []);
+
+  } catch (error) {
+    console.error(error);
+    agentTopics.innerHTML = `<span class="chip">No disponible</span>`;
+    agentRecommendations.innerHTML = `<li>No se pudieron cargar las recomendaciones.</li>`;
+    agentAlerts.innerHTML = `<li>No se pudieron cargar las alertas.</li>`;
+  }
+}
+
+function renderAgentTopics(topics) {
+  agentTopics.innerHTML = "";
+
+  if (!topics || topics.length === 0) {
+    agentTopics.innerHTML = `<span class="chip">Sin temas frecuentes</span>`;
+    return;
+  }
+
+  topics.forEach((item) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = `${item.tema} (${item.cantidad})`;
+    agentTopics.appendChild(chip);
+  });
+}
+
+function renderAgentRecommendations(recommendations) {
+  agentRecommendations.innerHTML = "";
+
+  if (!recommendations || recommendations.length === 0) {
+    agentRecommendations.innerHTML = `<li>Sin recomendaciones registradas.</li>`;
+    return;
+  }
+
+  recommendations.forEach((item) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${escapeHtml(item.prioridad || "media").toUpperCase()}</strong> -
+      ${escapeHtml(item.descripcion || "")}
+    `;
+    agentRecommendations.appendChild(li);
+  });
+}
+
+function renderAgentAlerts(alerts) {
+  agentAlerts.innerHTML = "";
+
+  if (!alerts || alerts.length === 0) {
+    agentAlerts.innerHTML = `<li>Sin alertas activas.</li>`;
+    return;
+  }
+
+  alerts.forEach((item) => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <strong>${escapeHtml(item.nivel || "medio").toUpperCase()}</strong> -
+      ${escapeHtml(item.mensaje || "")}
+    `;
+    agentAlerts.appendChild(li);
+  });
+}
+
+function renderAgentHistory(summaries) {
+  agentHistoryList.innerHTML = "";
+
+  summaries.slice(0, 8).forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "agent-history-item";
+
+    div.innerHTML = `
+      <div>
+        <strong>${formatDisplayDate(item.fecha)}</strong>
+        <p>${escapeHtml(item.resumen || "Sin resumen.")}</p>
+      </div>
+      <span>${Math.round(Number(item.nivel_satisfaccion || 0))}%</span>
+    `;
+
+    agentHistoryList.appendChild(div);
+  });
+}
 renderDashboard();
+loadAgentSummaries();
