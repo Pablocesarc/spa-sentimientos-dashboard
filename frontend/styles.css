@@ -722,3 +722,8 @@ td:first-child {
     justify-content: flex-start;
   }
 }
+.recommendations li,
+.alerts li,
+.db-card li {
+  white-space: pre-line;
+}
