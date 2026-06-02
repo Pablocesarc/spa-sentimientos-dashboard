@@ -4,6 +4,7 @@ const API_BASE_URL =
     ? "http://127.0.0.1:8000"
     : "https://spa-sentimientos-dashboard.onrender.com";
 const AGENT_SUMMARIES_URL = `${API_BASE_URL}/api/agente/resumenes`;
+const AGENT_DATABASE_URL = `${API_BASE_URL}/api/agente/base-datos?limit=200`;
 const API_URL = `${API_BASE_URL}/predict`;
 const BATCH_API_URL = `${API_BASE_URL}/predict-batch`;
 
@@ -61,6 +62,15 @@ const agentTopics = document.getElementById("agentTopics");
 const agentRecommendations = document.getElementById("agentRecommendations");
 const agentAlerts = document.getElementById("agentAlerts");
 const agentHistoryList = document.getElementById("agentHistoryList");
+const reloadDatabaseBtn = document.getElementById("reloadDatabaseBtn");
+const databaseStatus = document.getElementById("databaseStatus");
+const databaseContent = document.getElementById("databaseContent");
+const databaseCounters = document.getElementById("databaseCounters");
+const dbCommentsTable = document.getElementById("dbCommentsTable");
+const dbSummariesTable = document.getElementById("dbSummariesTable");
+const dbRecommendationsTable = document.getElementById("dbRecommendationsTable");
+const dbAlertsTable = document.getElementById("dbAlertsTable");
+const dbTopicsTable = document.getElementById("dbTopicsTable");
 
 const HISTORY_STORAGE_KEY = "spa_sentiment_history_v4";
 let history = JSON.parse(localStorage.getItem(HISTORY_STORAGE_KEY)) || [];
@@ -76,6 +86,24 @@ if (manualDateInput) {
 document.querySelectorAll(".example-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     commentInput.value = btn.textContent;
+  });
+});
+
+document.querySelectorAll(".tab-btn").forEach((button) => {
+  button.addEventListener("click", () => {
+    const tabName = button.dataset.tab;
+
+    document.querySelectorAll(".tab-btn").forEach((item) => {
+      item.classList.toggle("active", item === button);
+    });
+
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+    });
+
+    if (tabName === "agent") {
+      loadAgentSummaries();
+    }
   });
 });
 
@@ -217,6 +245,12 @@ exportBtn.addEventListener("click", () => {
 if (reloadAgentBtn) {
   reloadAgentBtn.addEventListener("click", () => {
     loadAgentSummaries();
+  });
+}
+
+if (reloadDatabaseBtn) {
+  reloadDatabaseBtn.addEventListener("click", () => {
+    loadAgentDatabase();
   });
 }
 
@@ -839,6 +873,8 @@ async function loadAgentSummaries() {
     agentStatus.classList.add("hidden");
     agentContent.classList.remove("hidden");
 
+    loadAgentDatabase();
+
   } catch (error) {
     console.error(error);
     agentStatus.textContent = "No se pudo cargar el agente. Verifica que el backend esté activo en Render.";
@@ -952,5 +988,169 @@ function renderAgentHistory(summaries) {
     agentHistoryList.appendChild(div);
   });
 }
+
+async function loadAgentDatabase() {
+  if (!databaseStatus || !databaseContent) return;
+
+  databaseStatus.textContent = "Cargando base de datos del agente...";
+  databaseStatus.classList.remove("hidden");
+  databaseContent.classList.add("hidden");
+
+  try {
+    const response = await fetch(AGENT_DATABASE_URL);
+
+    if (!response.ok) {
+      throw new Error("No se pudo obtener la base de datos del agente.");
+    }
+
+    const data = await response.json();
+
+    renderDatabaseCounters(data.conteos || {});
+    renderDbComments(data.comentarios || []);
+    renderDbSummaries(data.resumenes_diarios || []);
+    renderDbRecommendations(data.recomendaciones || []);
+    renderDbAlerts(data.alertas || []);
+    renderDbTopics(data.temas_frecuentes || []);
+
+    databaseStatus.classList.add("hidden");
+    databaseContent.classList.remove("hidden");
+  } catch (error) {
+    console.error(error);
+    databaseStatus.textContent = "No se pudo cargar la base de datos. Verifica el endpoint /api/agente/base-datos en Render.";
+  }
+}
+
+function renderDatabaseCounters(counts) {
+  if (!databaseCounters) return;
+
+  const items = [
+    ["Comentarios", counts.comentarios || 0],
+    ["Resúmenes", counts.resumenes_diarios || 0],
+    ["Recomendaciones", counts.recomendaciones || 0],
+    ["Alertas", counts.alertas || 0],
+    ["Temas", counts.temas_frecuentes || 0]
+  ];
+
+  databaseCounters.innerHTML = items.map(([label, value]) => `
+    <div class="kpi">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </div>
+  `).join("");
+}
+
+function renderDbComments(comments) {
+  if (!dbCommentsTable) return;
+
+  if (!comments.length) {
+    dbCommentsTable.innerHTML = `<tr><td colspan="6">No hay comentarios guardados.</td></tr>`;
+    return;
+  }
+
+  dbCommentsTable.innerHTML = comments.map((item) => `
+    <tr>
+      <td>${item.id}</td>
+      <td>${formatDisplayDate(item.fecha)}</td>
+      <td>${escapeHtml(shortText(item.texto, 120))}</td>
+      <td class="${getSentimentClass(item.sentimiento)}">${getSentimentEmoji(item.sentimiento)} ${escapeHtml(item.sentimiento || "-")}</td>
+      <td>${getEmotionEmoji(item.emocion)} ${escapeHtml(item.emocion || "-")}</td>
+      <td>${formatPercent(item.confianza)}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDbSummaries(summaries) {
+  if (!dbSummariesTable) return;
+
+  if (!summaries.length) {
+    dbSummariesTable.innerHTML = `<tr><td colspan="8">No hay resúmenes guardados.</td></tr>`;
+    return;
+  }
+
+  dbSummariesTable.innerHTML = summaries.map((item) => `
+    <tr>
+      <td>${item.id}</td>
+      <td>${formatDisplayDate(item.fecha)}</td>
+      <td>${item.total_comentarios ?? 0}</td>
+      <td>${item.positivos ?? 0}</td>
+      <td>${item.neutrales ?? 0}</td>
+      <td>${item.negativos ?? 0}</td>
+      <td>${Math.round(Number(item.nivel_satisfaccion || 0))}%</td>
+      <td>${escapeHtml(shortText(item.resumen, 140))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDbRecommendations(recommendations) {
+  if (!dbRecommendationsTable) return;
+
+  if (!recommendations.length) {
+    dbRecommendationsTable.innerHTML = `<tr><td colspan="5">No hay recomendaciones guardadas.</td></tr>`;
+    return;
+  }
+
+  dbRecommendationsTable.innerHTML = recommendations.map((item) => `
+    <tr>
+      <td>${item.id}</td>
+      <td>${item.resumen_id}</td>
+      <td>${escapeHtml(item.tipo || "-")}</td>
+      <td>${escapeHtml(item.prioridad || "media")}</td>
+      <td>${escapeHtml(shortText(item.descripcion, 160))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDbAlerts(alerts) {
+  if (!dbAlertsTable) return;
+
+  if (!alerts.length) {
+    dbAlertsTable.innerHTML = `<tr><td colspan="6">No hay alertas guardadas.</td></tr>`;
+    return;
+  }
+
+  dbAlertsTable.innerHTML = alerts.map((item) => `
+    <tr>
+      <td>${item.id}</td>
+      <td>${item.resumen_id}</td>
+      <td>${escapeHtml(item.tipo || "-")}</td>
+      <td>${escapeHtml(item.nivel || "medio")}</td>
+      <td>${item.activa ? "Sí" : "No"}</td>
+      <td>${escapeHtml(shortText(item.mensaje, 160))}</td>
+    </tr>
+  `).join("");
+}
+
+function renderDbTopics(topics) {
+  if (!dbTopicsTable) return;
+
+  if (!topics.length) {
+    dbTopicsTable.innerHTML = `<tr><td colspan="5">No hay temas frecuentes guardados.</td></tr>`;
+    return;
+  }
+
+  dbTopicsTable.innerHTML = topics.map((item) => `
+    <tr>
+      <td>${item.id}</td>
+      <td>${item.resumen_id}</td>
+      <td>${escapeHtml(item.tema || "-")}</td>
+      <td>${item.cantidad ?? 0}</td>
+      <td>${escapeHtml(item.sentimiento_asociado || "-")}</td>
+    </tr>
+  `).join("");
+}
+
+function shortText(text, maxLength = 120) {
+  const value = String(text || "").trim();
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}...`;
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const number = Number(value);
+  if (Number.isNaN(number)) return "-";
+  return number <= 1 ? `${Math.round(number * 100)}%` : `${Math.round(number)}%`;
+}
+
 renderDashboard();
-loadAgentSummaries();
+loadAgentSummaries(); 

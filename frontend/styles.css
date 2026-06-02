@@ -636,3 +636,89 @@ td:first-child {
     grid-template-columns: 1fr;
   }
 }
+
+
+.tab-nav {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -6px 0 22px;
+}
+
+.tab-btn {
+  border: 1px solid var(--borde);
+  background: #fffaf2;
+  color: var(--texto);
+  padding: 12px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(58, 35, 20, 0.08);
+}
+
+.tab-btn.active {
+  background: var(--vino);
+  color: #fff;
+  border-color: var(--vino);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.agent-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.agent-database {
+  margin-top: 22px;
+  background: #fbf7f1;
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.agent-database-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.db-kpis {
+  margin-bottom: 18px;
+}
+
+.db-section {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.db-section summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: var(--vino);
+  margin-bottom: 10px;
+}
+
+.db-section table {
+  min-width: 850px;
+}
+
+@media (max-width: 900px) {
+  .agent-actions,
+  .agent-database-header {
+    justify-content: flex-start;
+  }
+}

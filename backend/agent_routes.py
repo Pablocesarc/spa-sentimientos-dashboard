@@ -21,6 +21,65 @@ router = APIRouter(
 )
 
 
+def serializar_comentario(comentario: Comentario):
+    return {
+        "id": comentario.id,
+        "texto": comentario.texto,
+        "fecha": comentario.fecha,
+        "sentimiento": comentario.sentimiento,
+        "emocion": comentario.emocion,
+        "confianza": float(comentario.confianza) if comentario.confianza is not None else None,
+        "creado_en": comentario.creado_en
+    }
+
+
+def serializar_resumen_completo(resumen: ResumenDiario):
+    return {
+        "id": resumen.id,
+        "fecha": resumen.fecha,
+        "total_comentarios": resumen.total_comentarios,
+        "positivos": resumen.positivos,
+        "neutrales": resumen.neutrales,
+        "negativos": resumen.negativos,
+        "emocion_principal": resumen.emocion_principal,
+        "tema_principal": resumen.tema_principal,
+        "nivel_satisfaccion": float(resumen.nivel_satisfaccion) if resumen.nivel_satisfaccion is not None else None,
+        "resumen": resumen.resumen,
+        "creado_en": resumen.creado_en,
+        "recomendaciones": [
+            {
+                "id": recomendacion.id,
+                "tipo": recomendacion.tipo,
+                "descripcion": recomendacion.descripcion,
+                "prioridad": recomendacion.prioridad,
+                "creado_en": recomendacion.creado_en
+            }
+            for recomendacion in resumen.recomendaciones
+        ],
+        "alertas": [
+            {
+                "id": alerta.id,
+                "tipo": alerta.tipo,
+                "mensaje": alerta.mensaje,
+                "nivel": alerta.nivel,
+                "activa": alerta.activa,
+                "creado_en": alerta.creado_en
+            }
+            for alerta in resumen.alertas
+        ],
+        "temas_frecuentes": [
+            {
+                "id": tema.id,
+                "tema": tema.tema,
+                "cantidad": tema.cantidad,
+                "sentimiento_asociado": tema.sentimiento_asociado,
+                "creado_en": tema.creado_en
+            }
+            for tema in resumen.temas
+        ]
+    }
+
+
 class RecomendacionRequest(BaseModel):
     tipo: str
     descripcion: str
@@ -53,6 +112,70 @@ class ResumenDiarioRequest(BaseModel):
     recomendaciones: List[RecomendacionRequest] = []
     alertas: List[AlertaRequest] = []
     temas_frecuentes: List[TemaFrecuenteRequest] = []
+
+
+@router.get("/comentarios")
+def listar_comentarios(limit: int = 200, db: Session = Depends(get_db)):
+    limit = max(1, min(limit, 1000))
+    comentarios = db.query(Comentario).order_by(Comentario.creado_en.desc()).limit(limit).all()
+    return [serializar_comentario(comentario) for comentario in comentarios]
+
+
+@router.get("/base-datos")
+def obtener_base_datos(limit: int = 200, db: Session = Depends(get_db)):
+    limit = max(1, min(limit, 1000))
+
+    comentarios = db.query(Comentario).order_by(Comentario.creado_en.desc()).limit(limit).all()
+    resumenes = db.query(ResumenDiario).order_by(ResumenDiario.fecha.desc()).limit(limit).all()
+    recomendaciones = db.query(Recomendacion).order_by(Recomendacion.creado_en.desc()).limit(limit).all()
+    alertas = db.query(Alerta).order_by(Alerta.creado_en.desc()).limit(limit).all()
+    temas = db.query(TemaFrecuente).order_by(TemaFrecuente.creado_en.desc()).limit(limit).all()
+
+    return {
+        "conteos": {
+            "comentarios": db.query(Comentario).count(),
+            "resumenes_diarios": db.query(ResumenDiario).count(),
+            "recomendaciones": db.query(Recomendacion).count(),
+            "alertas": db.query(Alerta).count(),
+            "temas_frecuentes": db.query(TemaFrecuente).count()
+        },
+        "comentarios": [serializar_comentario(comentario) for comentario in comentarios],
+        "resumenes_diarios": [serializar_resumen_completo(resumen) for resumen in resumenes],
+        "recomendaciones": [
+            {
+                "id": recomendacion.id,
+                "resumen_id": recomendacion.resumen_id,
+                "tipo": recomendacion.tipo,
+                "descripcion": recomendacion.descripcion,
+                "prioridad": recomendacion.prioridad,
+                "creado_en": recomendacion.creado_en
+            }
+            for recomendacion in recomendaciones
+        ],
+        "alertas": [
+            {
+                "id": alerta.id,
+                "resumen_id": alerta.resumen_id,
+                "tipo": alerta.tipo,
+                "mensaje": alerta.mensaje,
+                "nivel": alerta.nivel,
+                "activa": alerta.activa,
+                "creado_en": alerta.creado_en
+            }
+            for alerta in alertas
+        ],
+        "temas_frecuentes": [
+            {
+                "id": tema.id,
+                "resumen_id": tema.resumen_id,
+                "tema": tema.tema,
+                "cantidad": tema.cantidad,
+                "sentimiento_asociado": tema.sentimiento_asociado,
+                "creado_en": tema.creado_en
+            }
+            for tema in temas
+        ]
+    }
 
 
 @router.get("/comentarios-dia")

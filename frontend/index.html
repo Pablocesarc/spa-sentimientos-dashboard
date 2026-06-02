@@ -25,6 +25,12 @@
       </div>
     </section>
 
+    <nav class="tab-nav" aria-label="Navegación principal del dashboard">
+      <button type="button" class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button type="button" class="tab-btn" data-tab="agent">Agente inteligente</button>
+    </nav>
+
+    <section id="tab-dashboard" class="tab-panel active">
     <section class="grid-main">
       <section class="card analyzer">
         <h2>Analizar comentario</h2>
@@ -204,6 +210,30 @@
         <div id="modelKeywordList" class="chips"></div>
       </section>
     </section>
+    <section class="card history-card">
+      <div class="history-header">
+        <h2>Historial de análisis</h2>
+        <button type="button" class="secondary" id="exportBtn">Exportar CSV</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Comentario</th>
+              <th>Sentimiento</th>
+              <th>Emoción</th>
+              <th>Confianza</th>
+            </tr>
+          </thead>
+          <tbody id="historyTable"></tbody>
+        </table>
+      </div>
+    </section>
+    </section>
+
+    <section id="tab-agent" class="tab-panel">
 <section class="card agent-card">
   <div class="agent-header">
     <div>
@@ -214,9 +244,14 @@
       </p>
     </div>
 
-    <button type="button" class="secondary" id="reloadAgentBtn">
-      Actualizar agente
-    </button>
+    <div class="agent-actions">
+      <button type="button" class="secondary" id="reloadAgentBtn">
+        Actualizar agente
+      </button>
+      <button type="button" class="secondary" id="reloadDatabaseBtn">
+        Actualizar base de datos
+      </button>
+    </div>
   </div>
 
   <div id="agentStatus" class="agent-status">
@@ -278,28 +313,118 @@
       <h3>Historial de resúmenes</h3>
       <div id="agentHistoryList" class="agent-history-list"></div>
     </div>
-  </div>
-</section>
-    <section class="card history-card">
-      <div class="history-header">
-        <h2>Historial de análisis</h2>
-        <button type="button" class="secondary" id="exportBtn">Exportar CSV</button>
+
+    <div class="agent-database">
+      <div class="agent-database-header">
+        <div>
+          <h3>Base de datos del agente</h3>
+          <p class="section-help">Vista directa de los datos guardados en PostgreSQL: comentarios, resúmenes, recomendaciones, alertas y temas frecuentes.</p>
+        </div>
       </div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Comentario</th>
-              <th>Sentimiento</th>
-              <th>Emoción</th>
-              <th>Confianza</th>
-            </tr>
-          </thead>
-          <tbody id="historyTable"></tbody>
-        </table>
+      <div id="databaseStatus" class="agent-status">Cargando base de datos...</div>
+
+      <div id="databaseContent" class="hidden">
+        <div class="kpi-grid db-kpis" id="databaseCounters"></div>
+
+        <details class="db-section" open>
+          <summary>Comentarios guardados</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Fecha</th>
+                  <th>Comentario</th>
+                  <th>Sentimiento</th>
+                  <th>Emoción</th>
+                  <th>Confianza</th>
+                </tr>
+              </thead>
+              <tbody id="dbCommentsTable"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="db-section">
+          <summary>Resúmenes diarios</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Fecha</th>
+                  <th>Total</th>
+                  <th>Positivos</th>
+                  <th>Neutrales</th>
+                  <th>Negativos</th>
+                  <th>Satisfacción</th>
+                  <th>Resumen</th>
+                </tr>
+              </thead>
+              <tbody id="dbSummariesTable"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="db-section">
+          <summary>Recomendaciones guardadas</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Resumen ID</th>
+                  <th>Tipo</th>
+                  <th>Prioridad</th>
+                  <th>Descripción</th>
+                </tr>
+              </thead>
+              <tbody id="dbRecommendationsTable"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="db-section">
+          <summary>Alertas guardadas</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Resumen ID</th>
+                  <th>Tipo</th>
+                  <th>Nivel</th>
+                  <th>Activa</th>
+                  <th>Mensaje</th>
+                </tr>
+              </thead>
+              <tbody id="dbAlertsTable"></tbody>
+            </table>
+          </div>
+        </details>
+
+        <details class="db-section">
+          <summary>Temas frecuentes guardados</summary>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Resumen ID</th>
+                  <th>Tema</th>
+                  <th>Cantidad</th>
+                  <th>Sentimiento asociado</th>
+                </tr>
+              </thead>
+              <tbody id="dbTopicsTable"></tbody>
+            </table>
+          </div>
+        </details>
       </div>
+    </div>
+  </div>
+</section>
     </section>
   </main>
 
